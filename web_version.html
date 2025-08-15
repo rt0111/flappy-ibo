@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Ibo - Web Versiyonu</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #87CEEB, #98FB98);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: Arial, sans-serif;
+        }
+        
+        .game-container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            max-width: 600px;
+        }
+        
+        canvas {
+            border: 3px solid #333;
+            border-radius: 10px;
+            background: #87CEEB;
+            cursor: pointer;
+        }
+        
+        .controls {
+            margin: 20px 0;
+            font-size: 18px;
+            color: #333;
+        }
+        
+        .score {
+            font-size: 24px;
+            font-weight: bold;
+            color: #FF6B35;
+            margin: 10px 0;
+        }
+        
+        .mobile-controls {
+            display: none;
+            margin-top: 20px;
+        }
+        
+        .jump-btn {
+            background: #FF6B35;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            box-shadow: 0 5px 15px rgba(255, 107, 53, 0.3);
+        }
+        
+        .jump-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 3px 10px rgba(255, 107, 53, 0.3);
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-controls {
+                display: block;
+            }
+            
+            canvas {
+                max-width: 100%;
+                height: auto;
+            }
+            
+            .game-container {
+                margin: 10px;
+                padding: 20px;
+            }
+        }
+        
+        .info {
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>🐦 Flappy Ibo</h1>
+        <div class="score">Skor: <span id="score">0</span> | En Yüksek: <span id="highScore">0</span></div>
+        
+        <canvas id="gameCanvas" width="576" height="1024"></canvas>
+        
+        <div class="controls">
+            <strong>Kontroller:</strong><br>
+            🖱️ Mouse Tıklama | ⌨️ SPACE | 📱 Dokunma
+        </div>
+        
+        <div class="mobile-controls">
+            <button class="jump-btn" id="jumpBtn">🐦 ZİPLA</button>
+        </div>
+        
+        <div class="info">
+            <strong>📱 Mobil Uyumluluk:</strong> Bu oyun mobil cihazlarda mükemmel çalışır!<br>
+            <strong>🎮 Oyun:</strong> Mavi kuşu borulardan geçir, engellere çarpma!<br>
+            <strong>🔊 Ses:</strong> Çarpışma sesleri aktif
+        </div>
+    </div>
+
+    <script>
+        // Canvas ve context
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        // Oyun değişkenleri
+        let score = 0;
+        let highScore = localStorage.getItem('flappyHighScore') || 0;
+        let gameState = 'menu'; // menu, playing, gameOver
+        
+        // Kuş
+        const bird = {
+            x: 100,
+            y: canvas.height / 2,
+            width: 34,
+            height: 24,
+            velocity: 0,
+            gravity: 0.3,
+            jumpStrength: -6,
+            color: '#4A90E2'
+        };
+        
+        // Borular
+        const pipes = [];
+        const pipeWidth = 52;
+        const pipeGap = 150;
+        let pipeTimer = 0;
+        
+        // Engeller
+        const obstacles = [];
+        
+        // Ses efektleri (Gerçek ses dosyaları)
+        let audioContext;
+        let sounds = {};
+        
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                loadSounds();
+                console.log('Ses sistemi başlatıldı');
+            } catch (e) {
+                console.log('Ses desteklenmiyor:', e);
+            }
+        }
+        
+        function loadSounds() {
+            const soundFiles = {
+                crash: 'assets/sounds/crash_sound.wav'
+            };
+            
+            Object.keys(soundFiles).forEach(key => {
+                const audio = new Audio(soundFiles[key]);
+                audio.preload = 'auto';
+                audio.volume = 0.3;
+                sounds[key] = audio;
+            });
+        }
+        
+        function playSound(soundName) {
+            console.log('Ses çalınmaya çalışılıyor:', soundName);
+            if (sounds[soundName]) {
+                try {
+                    sounds[soundName].currentTime = 0;
+                    sounds[soundName].play().then(() => {
+                        console.log('Ses başarıyla çalındı:', soundName);
+                    }).catch(e => {
+                        console.log('Ses çalınamadı:', soundName, e);
+                    });
+                } catch (e) {
+                    console.log('Ses çalma hatası:', soundName, e);
+                }
+            } else {
+                console.log('Ses dosyası bulunamadı:', soundName);
+            }
+        }
+        
+        // Görseller
+        const images = {};
+        
+        function loadImages() {
+            const imageFiles = {
+                background: 'assets/images/background.png',
+                bird: 'assets/images/character_idle.png',
+                pipeTop: 'assets/images/pipe_top.png',
+                pipeBottom: 'assets/images/pipe_bottom.png',
+                ground: 'assets/images/ground.png',
+                obstacle: 'assets/images/obstacle.png'
+            };
+            
+            let loadedCount = 0;
+            const totalImages = Object.keys(imageFiles).length;
+            
+            Object.keys(imageFiles).forEach(key => {
+                const img = new Image();
+                img.onload = () => {
+                    loadedCount++;
+                    if (loadedCount === totalImages) {
+                        console.log('Tüm görseller yüklendi');
+                    }
+                };
+                img.src = imageFiles[key];
+                images[key] = img;
+            });
+        }
+        
+        // Oyun fonksiyonları
+        function jump() {
+            if (gameState === 'menu') {
+                gameState = 'playing';
+                initAudio();
+            }
+            
+            if (gameState === 'playing') {
+                bird.velocity = bird.jumpStrength;
+                // Zıplama sesi (basit beep)
+            }
+            
+            if (gameState === 'gameOver') {
+                resetGame();
+            }
+        }
+        
+        function resetGame() {
+            bird.y = canvas.height / 2;
+            bird.velocity = 0;
+            pipes.length = 0;
+            obstacles.length = 0;
+            score = 0;
+            pipeTimer = 0;
+            gameState = 'menu';
+            updateScore();
+        }
+        
+        function updateScore() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('highScore').textContent = highScore;
+        }
+        
+        function spawnPipe() {
+            const minHeight = 50;
+            const maxHeight = canvas.height - pipeGap - 100;
+            const height = Math.random() * (maxHeight - minHeight) + minHeight;
+            
+            pipes.push({
+                x: canvas.width,
+                topHeight: height,
+                bottomY: height + pipeGap,
+                bottomHeight: canvas.height - (height + pipeGap),
+                passed: false
+            });
+            
+            // Bazen engel ekle
+            if (Math.random() < 0.3) {
+                obstacles.push({
+                    x: canvas.width + 100,
+                    y: Math.random() * (canvas.height - 200) + 100,
+                    width: 40,
+                    height: 40
+                });
+            }
+        }
+        
+        function update() {
+            if (gameState !== 'playing') return;
+            
+            // Kuş güncelle
+            bird.velocity += bird.gravity;
+            bird.y += bird.velocity;
+            
+            // Boru spawn
+            pipeTimer++;
+            if (pipeTimer > 150) {
+                spawnPipe();
+                pipeTimer = 0;
+            }
+            
+            // Boruları güncelle
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                const pipe = pipes[i];
+                pipe.x -= 1.5;
+                
+                // Skor kontrolü
+                if (!pipe.passed && pipe.x + pipeWidth < bird.x) {
+                    pipe.passed = true;
+                    score++;
+                    updateScore();
+                    // Skor sesi (basit beep)
+                }
+                
+                // Çarpışma kontrolü
+                if (bird.x < pipe.x + pipeWidth && bird.x + bird.width > pipe.x) {
+                    if (bird.y < pipe.topHeight || bird.y + bird.height > pipe.bottomY) {
+                        gameOver('pipe');
+                    }
+                }
+                
+                // Ekran dışı boruları sil
+                if (pipe.x + pipeWidth < 0) {
+                    pipes.splice(i, 1);
+                }
+            }
+            
+            // Engelleri güncelle
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                const obstacle = obstacles[i];
+                obstacle.x -= 1.5;
+                
+                // Çarpışma kontrolü
+                if (bird.x < obstacle.x + obstacle.width && 
+                    bird.x + bird.width > obstacle.x &&
+                    bird.y < obstacle.y + obstacle.height && 
+                    bird.y + bird.height > obstacle.y) {
+                    gameOver('obstacle');
+                }
+                
+                // Ekran dışı engelleri sil
+                if (obstacle.x + obstacle.width < 0) {
+                    obstacles.splice(i, 1);
+                }
+            }
+            
+            // Zemin ve tavan kontrolü
+            if (bird.y + bird.height > canvas.height || bird.y < 0) {
+                gameOver('boundary');
+            }
+        }
+        
+        function gameOver(crashType = 'normal') {
+            gameState = 'gameOver';
+            
+            // Tüm game over durumlarında crash sesi çal
+            playSound('crash');
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('flappyHighScore', highScore);
+                updateScore();
+            }
+        }
+        
+        function draw() {
+            // Arkaplan
+            if (images.background && images.background.complete) {
+                // Arkaplan görselini tekrarlayarak çiz
+                const bgWidth = images.background.width;
+                const bgHeight = images.background.height;
+                const scaleX = canvas.width / bgWidth;
+                const scaleY = canvas.height / bgHeight;
+                ctx.drawImage(images.background, 0, 0, canvas.width, canvas.height);
+            } else {
+                // Fallback arkaplan
+                ctx.fillStyle = '#87CEEB';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+            
+            if (gameState === 'playing' || gameState === 'gameOver') {
+                // Boruları çiz
+                pipes.forEach(pipe => {
+                    if (images.pipeTop && images.pipeTop.complete && images.pipeBottom && images.pipeBottom.complete) {
+                        // Üst boru (ters çevrilmiş)
+                        ctx.save();
+                        ctx.scale(1, -1);
+                        ctx.drawImage(images.pipeTop, pipe.x, -pipe.topHeight, pipeWidth, pipe.topHeight);
+                        ctx.restore();
+                        
+                        // Alt boru
+                        ctx.drawImage(images.pipeBottom, pipe.x, pipe.bottomY, pipeWidth, pipe.bottomHeight);
+                    } else {
+                        // Fallback borular
+                        ctx.fillStyle = '#228B22';
+                        ctx.fillRect(pipe.x, 0, pipeWidth, pipe.topHeight);
+                        ctx.fillRect(pipe.x, pipe.bottomY, pipeWidth, pipe.bottomHeight);
+                    }
+                });
+                
+                // Engelleri çiz
+                obstacles.forEach(obstacle => {
+                    if (images.obstacle && images.obstacle.complete) {
+                        ctx.drawImage(images.obstacle, obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                    } else {
+                        // Fallback engel
+                        ctx.fillStyle = '#FF4444';
+                        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                    }
+                });
+                
+                // Kuşu çiz
+                if (images.bird && images.bird.complete) {
+                    ctx.drawImage(images.bird, bird.x, bird.y, bird.width, bird.height);
+                } else {
+                    // Fallback kuş
+                    ctx.fillStyle = bird.color;
+                    ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
+                    
+                    // Kuş detayları
+                    ctx.fillStyle = '#FFFFFF';
+                    ctx.fillRect(bird.x + 20, bird.y + 5, 8, 8); // Göz
+                    ctx.fillStyle = '#000000';
+                    ctx.fillRect(bird.x + 22, bird.y + 7, 4, 4); // Göz bebeği
+                    
+                    // Gaga
+                    ctx.fillStyle = '#FFA500';
+                    ctx.fillRect(bird.x + bird.width, bird.y + 10, 8, 4);
+                }
+            }
+            
+            // Menü
+            if (gameState === 'menu') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = '#FFFF00';
+                ctx.font = 'bold 48px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('FLAPPY BIRD', canvas.width / 2, canvas.height / 2 - 100);
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '24px Arial';
+                ctx.fillText('Başlamak için tıkla!', canvas.width / 2, canvas.height / 2);
+                ctx.fillText(`En Yüksek Skor: ${highScore}`, canvas.width / 2, canvas.height / 2 + 50);
+            }
+            
+            // Game Over
+            if (gameState === 'gameOver') {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                ctx.fillStyle = '#FF0000';
+                ctx.font = 'bold 36px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('OYUN BİTTİ', canvas.width / 2, canvas.height / 2 - 50);
+                
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font = '24px Arial';
+                ctx.fillText(`Skor: ${score}`, canvas.width / 2, canvas.height / 2);
+                ctx.fillText(`En Yüksek: ${highScore}`, canvas.width / 2, canvas.height / 2 + 30);
+                ctx.fillText('Yeniden başlamak için tıkla!', canvas.width / 2, canvas.height / 2 + 80);
+            }
+        }
+        
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Event listeners
+        canvas.addEventListener('click', jump);
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                jump();
+            }
+        });
+        
+        document.getElementById('jumpBtn').addEventListener('click', jump);
+        
+        // Touch events for mobile
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            jump();
+        });
+        
+        // Başlat
+        loadImages();
+        updateScore();
+        gameLoop();
+    </script>
+</body>
+</html>

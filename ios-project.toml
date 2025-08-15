@@ -1,0 +1,77 @@
+# iOS Proje Konfigürasyonu
+# kivy-ios için gerekli ayarlar
+
+[project]
+name = "FlappyBird"
+bundle_id = "com.yourname.flappybird"
+version = "1.0.0"
+display_name = "Flappy Bird"
+author = "Your Name"
+email = "your.email@example.com"
+description = "Klasik Flappy Bird oyununun iOS versiyonu"
+
+[ios]
+deployment_target = "12.0"
+device_family = "1"  # 1=iPhone, 2=iPad, 1,2=Universal
+orientation = "portrait"
+status_bar_style = "default"
+requires_full_screen = false
+
+[app]
+main_script = "main_ios.py"
+icon = "assets/images/app_icon.png"
+launch_screen = "assets/images/launch_screen.png"
+
+[requirements]
+python_version = "3.9"
+kivy_version = "2.1.0"
+packages = [
+    "kivy",
+    "python3"
+]
+
+[assets]
+include_patterns = [
+    "assets/images/*.png",
+    "assets/sounds/*.wav",
+    "*.json"
+]
+exclude_patterns = [
+    "__pycache__/*",
+    "*.pyc",
+    ".git/*",
+    "*.md"
+]
+
+[build]
+architectures = ["arm64", "armv7"]
+optimization_level = "O2"
+strip_debug_symbols = true
+
+[signing]
+team_id = "YOUR_TEAM_ID"  # Apple Developer Team ID
+provisioning_profile = "YOUR_PROVISIONING_PROFILE"
+code_sign_identity = "iPhone Developer"
+
+[capabilities]
+# iOS yetenekleri (gerekirse aktifleştirin)
+game_center = false
+in_app_purchase = false
+push_notifications = false
+background_modes = []
+
+[info_plist]
+# Ek Info.plist ayarları
+NSCameraUsageDescription = "Bu uygulama kamera kullanmaz"
+NSMicrophoneUsageDescription = "Bu uygulama mikrofon kullanmaz"
+NSLocationWhenInUseUsageDescription = "Bu uygulama konum kullanmaz"
+UIRequiredDeviceCapabilities = ["armv7"]
+UIStatusBarHidden = false
+UIViewControllerBasedStatusBarAppearance = true
+
+[metadata]
+category = "Games"
+keywords = ["flappy", "bird", "game", "arcade", "mobile"]
+copyright = "© 2024 Your Name. Tüm hakları saklıdır."
+age_rating = "4+"
+supported_languages = ["tr", "en"]

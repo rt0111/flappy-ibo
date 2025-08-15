@@ -1,0 +1,4 @@
+# Flappy Bird Klonu - Gerekli Paketler
+# Python 3.10+ gereklidir
+
+pygame==2.5.2

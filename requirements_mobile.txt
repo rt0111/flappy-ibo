@@ -1,0 +1,22 @@
+# Mobil uygulama için gerekli bağımlılıklar
+
+# Kivy - Mobil uygulama framework'ü
+kivy>=2.1.0
+
+# Android paketleme için (opsiyonel)
+buildozer>=1.4.0
+
+# iOS paketleme için (opsiyonel - sadece macOS'ta)
+# kivy-ios>=1.1.0
+
+# Ses desteği
+# pygame>=2.1.0  # Ses dosyaları için (opsiyonel)
+
+# JSON desteği (Python'da built-in)
+# json
+
+# Dosya işlemleri (Python'da built-in)
+# os
+
+# Rastgele sayı üretimi (Python'da built-in)
+# random

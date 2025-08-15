@@ -1,0 +1,28 @@
+{
+  "name": "flappy-ibo",
+  "version": "1.0.0",
+  "description": "Flappy Ibo oyunu - Web ve mobil uyumlu",
+  "main": "web_version.html",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000"
+  },
+  "keywords": [
+    "flappy-ibo",
+    "game",
+    "html5",
+    "canvas",
+    "mobile",
+    "web"
+  ],
+  "author": "Flappy Ibo Developer",
+  "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/username/flappy-bird-web.git"
+  },
+  "homepage": "https://flappy-bird-web.vercel.app"
+}
